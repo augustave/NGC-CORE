@@ -1,12 +1,44 @@
-import { motion, AnimatePresence } from 'framer-motion';
-import { Target, Shield, Activity, Radio, AlertTriangle, Cpu, Clock, Zap, CheckCircle, Fingerprint, Search, Eye, Layers, Thermometer, Crosshair, FileText } from 'lucide-react';
-import { useMemo } from 'react';
+import { useMemo } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import {
+  Activity,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Crosshair,
+  Eye,
+  FileText,
+  Fingerprint,
+  Layers,
+  Radio,
+  Search,
+  Shield,
+  Thermometer,
+  Target,
+  Zap,
+} from 'lucide-react'
+import type { SensorMode } from '../NGC'
 
-export const TacticalC2Overlay = ({ 
-  active, 
-  conjunction, 
-  onMitigate, 
-  currentTime, 
+export interface TacticalC2OverlayProps {
+  active: boolean
+  conjunction: boolean
+  onMitigate: () => void
+  currentTime: number
+  onTimeChange: (time: number) => void
+  isVerifying: boolean
+  verificationHash: string | null
+  onVerify: () => void
+  onExportReport: () => void
+  sensorMode: SensorMode
+  onSensorModeChange: (mode: SensorMode) => void
+  hoveredDebris: boolean
+}
+
+export const TacticalC2Overlay = ({
+  active,
+  conjunction,
+  onMitigate,
+  currentTime,
   onTimeChange,
   isVerifying,
   verificationHash,
@@ -14,277 +46,355 @@ export const TacticalC2Overlay = ({
   onExportReport,
   sensorMode,
   onSensorModeChange,
-  hoveredDebris
-}: any) => {
-  
-  const altitude = useMemo(() => (7102.4 + Math.sin(currentTime * 0.01) * 5).toFixed(1), [currentTime]);
-  const velocity = useMemo(() => (7.52 - Math.cos(currentTime * 0.01) * 0.05).toFixed(2), [currentTime]);
+  hoveredDebris,
+}: TacticalC2OverlayProps) => {
+  const prefersReducedMotion = useReducedMotion()
+  const sensorModes = [
+    { id: 'OPTICAL' as const, icon: Eye },
+    { id: 'SAR' as const, icon: Layers },
+    { id: 'THERMAL' as const, icon: Thermometer },
+  ]
 
-  const isNearingConjunction = conjunction && currentTime > 12000 && currentTime < 15000;
+  const altitude = useMemo(() => (7102.4 + Math.sin(currentTime * 0.01) * 5).toFixed(1), [currentTime])
+  const velocity = useMemo(() => (7.52 - Math.cos(currentTime * 0.01) * 0.05).toFixed(2), [currentTime])
 
-  const accentColor = useMemo(() => {
-    if (sensorMode === 'SAR')     return 'text-c2-accent-green';
-    if (sensorMode === 'THERMAL') return 'text-c2-accent-amber';
-    return 'text-c2-accent-blue';
-  }, [sensorMode]);
+  const isNearingConjunction = conjunction && currentTime > 12_000 && currentTime < 15_000
 
-  const borderColor = useMemo(() => {
-    if (sensorMode === 'SAR')     return 'border-c2-accent-green';
-    if (sensorMode === 'THERMAL') return 'border-c2-accent-amber';
-    return 'border-c2-accent-blue';
-  }, [sensorMode]);
+  const tone = sensorMode === 'SAR' ? 'green' : sensorMode === 'THERMAL' ? 'amber' : 'blue'
+  const accentColor =
+    tone === 'green' ? 'text-c2-accent-green' : tone === 'amber' ? 'text-c2-accent-amber' : 'text-c2-accent-blue'
+  const borderColor =
+    tone === 'green' ? 'border-c2-accent-green/60' : tone === 'amber' ? 'border-c2-accent-amber/60' : 'border-c2-accent-blue/60'
+  const surfaceBorder =
+    tone === 'green' ? 'border-c2-accent-green/25' : tone === 'amber' ? 'border-c2-accent-amber/25' : 'border-c2-accent-blue/25'
+  const statusText = conjunction ? 'CONJUNCTION WATCH' : active ? 'MITIGATION APPLIED' : 'NOMINAL'
 
   return (
-    <div className={`absolute inset-0 pointer-events-none ${accentColor} font-mono select-none p-8 flex flex-col justify-between overflow-hidden transition-colors duration-500`}>
-      {/* Header */}
-      <div className="flex justify-between items-start">
-        <div className="flex flex-col gap-1">
-          <div className="text-2xl font-bold tracking-tighter text-white">NGC CORE</div>
-          <div className="text-xs opacity-60 uppercase tracking-widest">Neptune-1 Resilience Portal // T-Machine v.1.2.0</div>
-        </div>
-        
-        <div className="flex gap-4 items-center">
-          <AnimatePresence>
-            {verificationHash && (
-              <motion.div 
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className={`flex items-center gap-2 bg-c2-accent-green/10 border border-c2-accent-green/50 px-3 py-1 rounded-sm`}
-              >
-                <CheckCircle className="w-3 h-3 text-c2-accent-green" />
-                <span className="text-[1.5rem] text-c2-accent-green font-bold tracking-widest uppercase">NGC-VERIFIED [S13]</span>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <div className="flex flex-col items-end">
-            <div className="text-xs opacity-60 uppercase">System Status</div>
-            <div className={`font-bold ${isNearingConjunction ? 'text-c2-accent-amber' : 'text-c2-accent-green'}`}>
-              {isNearingConjunction ? 'CAUTION' : 'NOMINAL'}
+    <div className={`pointer-events-none relative flex min-h-screen flex-col gap-4 overflow-y-auto p-4 sm:p-6 lg:absolute lg:inset-0 lg:min-h-0 lg:overflow-hidden lg:p-8 ${accentColor} transition-colors duration-300`}>
+      <header className="pointer-events-auto flex flex-col gap-4 rounded-[28px] border border-white/10 bg-black/40 px-4 py-4 backdrop-blur-xl shadow-[0_16px_80px_rgba(0,0,0,0.35)] sm:px-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-3">
+            <div className="text-[0.62rem] uppercase tracking-[0.28em] text-white/45 sm:text-[0.7rem] sm:tracking-[0.4em]">NGC Mission Dashboard</div>
+            <div className={`rounded-full border px-2.5 py-1 text-[0.62rem] uppercase tracking-[0.24em] ${surfaceBorder} bg-white/5 text-white/70 sm:px-3 sm:text-[0.65rem] sm:tracking-[0.35em]`}>
+              Neptune-1
             </div>
           </div>
-          <div className={`w-10 h-10 border rounded-full flex items-center justify-center transition-colors ${isNearingConjunction ? 'border-c2-accent-amber bg-c2-accent-amber/10' : borderColor}`}>
-            <Shield className="w-5 h-5" />
+          <div className="max-w-xl text-[1.65rem] font-semibold leading-[1.02] tracking-[-0.03em] text-white sm:text-2xl">
+            Orbital resilience and deconfliction
+          </div>
+          <div className="max-w-xl text-[0.92rem] text-white/55 sm:text-sm">
+            Deterministic replay, sensor-band switching, and mitigation review in a single operator view.
           </div>
         </div>
-      </div>
 
-      {/* Main UI */}
-      <div className="flex flex-1 items-center justify-between pointer-events-auto">
-        {/* Left Panel: Telemetry & Sensor Toggle */}
-        <div className="flex flex-col gap-4">
-          <motion.div 
-            initial={{ x: -100, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            className={`bg-black/40 backdrop-blur-md border-l-2 ${borderColor} p-6 flex flex-col gap-4 max-w-xs transition-colors duration-500`}
+        <div className="grid gap-3 sm:grid-cols-2 lg:min-w-[430px]">
+          <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+            <div className="flex items-center justify-between text-[0.7rem] uppercase tracking-[0.3em] text-white/45">
+              <span>System state</span>
+              <Shield className="h-3.5 w-3.5" />
+            </div>
+            <div className={`mt-2 text-sm font-semibold uppercase tracking-[0.28em] ${isNearingConjunction ? 'text-c2-accent-amber' : 'text-c2-accent-green'}`}>
+              {statusText}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+            <div className="flex items-center justify-between text-[0.7rem] uppercase tracking-[0.3em] text-white/45">
+              <span>Integrity</span>
+              <CheckCircle className="h-3.5 w-3.5" />
+            </div>
+            <div className="mt-2 text-sm font-semibold uppercase tracking-[0.22em] text-white">
+              {verificationHash ?? (isVerifying ? 'Scanning...' : 'Pending')}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="pointer-events-none grid flex-1 gap-4 lg:grid-cols-[280px_minmax(0,1fr)_300px]">
+        <section className="pointer-events-auto flex flex-col gap-4">
+          <motion.div
+            initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: prefersReducedMotion ? 0 : 0.28 }}
+            className={`rounded-[28px] border ${borderColor} bg-black/45 p-4 backdrop-blur-xl shadow-[0_16px_60px_rgba(0,0,0,0.28)] sm:p-5`}
           >
-            <div className="flex items-center justify-between border-b border-blue-500/30 pb-2">
-              <div className="flex items-center gap-2">
-                <Activity className="w-4 h-4" />
-                <span className="text-sm font-bold uppercase tracking-widest text-white">Sensor Fusion</span>
+            <div className="flex items-center gap-2 border-b border-white/10 pb-3">
+              <Activity className="h-4 w-4" />
+              <span className="text-[0.9rem] font-semibold uppercase tracking-[0.22em] text-white sm:text-sm sm:tracking-[0.24em]">Sensor control</span>
+            </div>
+
+            <div className="mt-4 flex gap-2">
+              {sensorModes.map((mode) => {
+                const selected = sensorMode === mode.id
+
+                return (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    onClick={() => onSensorModeChange(mode.id)}
+                    className={`flex flex-1 flex-col items-center gap-2 rounded-2xl border px-2.5 py-3 text-left text-white transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:px-3 ${
+                      selected ? `${surfaceBorder} bg-white/10` : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10'
+                    }`}
+                  >
+                    <mode.icon className="h-4 w-4" />
+                    <span className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] sm:text-xs sm:tracking-[0.22em]">{mode.id}</span>
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-white/65">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                <div className="text-[0.6rem] uppercase tracking-[0.22em] text-white/45 sm:text-[0.65rem] sm:tracking-[0.28em]">Altitude</div>
+                <div className="mt-1 text-[0.98rem] font-semibold text-white sm:text-base">{altitude} km</div>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                <div className="text-[0.6rem] uppercase tracking-[0.22em] text-white/45 sm:text-[0.65rem] sm:tracking-[0.28em]">Velocity</div>
+                <div className="mt-1 text-[0.98rem] font-semibold text-white sm:text-base">{velocity} km/s</div>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                <div className="text-[0.6rem] uppercase tracking-[0.22em] text-white/45 sm:text-[0.65rem] sm:tracking-[0.28em]">Resolution</div>
+                <div className="mt-1 text-[0.98rem] font-semibold text-white sm:text-base">{sensorMode === 'OPTICAL' ? '15 cm' : '30 cm'}</div>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                <div className="text-[0.6rem] uppercase tracking-[0.22em] text-white/45 sm:text-[0.65rem] sm:tracking-[0.28em]">Time offset</div>
+                <div className="mt-1 text-[0.98rem] font-semibold text-white sm:text-base">T+{currentTime}s</div>
               </div>
             </div>
 
-            <div className="flex flex-col gap-2 mb-2">
-               <div className="text-[1.5rem] opacity-60 uppercase mb-1 font-bold text-white/80">Spectral Band Selection</div>
-               <div className="flex gap-2">
-                  {[
-                    { id: 'OPTICAL', icon: Eye },
-                    { id: 'SAR', icon: Layers },
-                    { id: 'THERMAL', icon: Thermometer }
-                  ].map((mode) => (
-                    <button
-                      key={mode.id}
-                      onClick={() => onSensorModeChange(mode.id)}
-                      className={`flex-1 py-2 flex flex-col items-center gap-1 border transition-all ${
-                        sensorMode === mode.id 
-                          ? `${borderColor} bg-white/10 text-white` 
-                          : 'border-white/10 text-white/40 hover:border-white/30'
-                      }`}
-                    >
-                      <mode.icon className="w-4 h-4" />
-                      <span className="text-[1.25rem] font-bold">{mode.id}</span>
-                    </button>
-                  ))}
-               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 text-[1.5rem] border-t border-white/10 pt-4">
-              <div>ALTITUDE<br/><span className="text-sm text-white">{altitude} KM</span></div>
-              <div>VELOCITY<br/><span className="text-sm text-white">{velocity} KM/S</span></div>
-              <div>RESOLUTION<br/><span className="text-sm text-white">{sensorMode === 'OPTICAL' ? '15CM' : '30CM'}</span></div>
-              <div>T-OFFSET<br/><span className="text-sm text-white">+{currentTime}s</span></div>
-            </div>
-
-            <div className="flex flex-col gap-2 mt-2">
-              <button 
+            <div className="mt-4 flex flex-col gap-2">
+              <button
+                type="button"
                 onClick={onVerify}
                 disabled={isVerifying}
-                className={`py-2 px-4 border text-[1.5rem] font-bold tracking-widest uppercase flex items-center justify-center gap-2 transition-all ${
-                  isVerifying ? 'border-white/20 text-white/40' : `${borderColor} hover:bg-white/10 text-white`
+                className={`inline-flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-[0.85rem] font-semibold uppercase tracking-[0.16em] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:text-sm sm:tracking-[0.22em] ${
+                  isVerifying
+                    ? 'border-white/10 bg-white/5 text-white/40'
+                    : `${surfaceBorder} bg-white/5 text-white hover:bg-white/10`
                 }`}
               >
-                {isVerifying ? <Search className="w-3 h-3 animate-spin" /> : <Fingerprint className="w-3 h-3" />}
-                {isVerifying ? 'Scanning Engine Integrity...' : 'Verify Section 13 Integrity'}
+                {isVerifying ? <Search className="h-4 w-4 animate-spin" /> : <Fingerprint className="h-4 w-4" />}
+                {isVerifying ? 'Scanning integrity' : 'Verify integrity'}
               </button>
 
-              <button 
+              <button
+                type="button"
                 onClick={onExportReport}
-                className={`py-2 px-4 border border-white/10 hover:border-white/30 text-[1.5rem] font-bold tracking-widest uppercase flex items-center justify-center gap-2 transition-all text-white/60 hover:text-white`}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-[0.85rem] font-semibold uppercase tracking-[0.16em] text-white/70 transition-all hover:border-white/20 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:text-sm sm:tracking-[0.22em]"
               >
-                <FileText className="w-3 h-3" />
-                Download Mission Report
+                <FileText className="h-4 w-4" />
+                Export report
               </button>
             </div>
           </motion.div>
 
-          {/* Gaze-Aware Covariance Panel (Idea 4) */}
           <AnimatePresence>
             {hoveredDebris && (
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                className="bg-red-950/40 backdrop-blur-md border-l-2 border-red-500 p-4 flex flex-col gap-2 max-w-xs"
+                exit={{ opacity: 0, y: 8 }}
+                className="rounded-[24px] border border-red-500/30 bg-red-950/35 p-4 backdrop-blur-xl"
               >
-                <div className="flex items-center gap-2 text-red-400">
-                   <Crosshair className="w-4 h-4" />
-                   <span className="text-[1.5rem] font-bold uppercase tracking-widest">Probabilistic Threat Analysis</span>
+                <div className="flex items-center gap-2 text-red-300">
+                  <Crosshair className="h-4 w-4" />
+                  <span className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] sm:text-xs sm:tracking-[0.24em]">Threat focus</span>
                 </div>
-                <div className="grid grid-cols-1 gap-2 text-[1.25rem]">
-                   <div className="flex justify-between">
-                      <span className="opacity-60">Pc (PROBABILITY)</span>
-                      <span className="text-red-400 font-bold">0.00314</span>
-                   </div>
-                   <div className="flex justify-between">
-                      <span className="opacity-60">d-MISS (NOMINAL)</span>
-                      <span className="text-red-400 font-bold">412.8 M</span>
-                   </div>
-                   <div className="flex justify-between">
-                      <span className="opacity-60">COVARIANCE (1-SIGMA)</span>
-                      <span className="text-red-400 font-bold">±84.2 M</span>
-                   </div>
-                </div>
-                <div className="h-1 w-full bg-red-900/30 mt-1">
-                   <motion.div 
-                     initial={{ width: 0 }}
-                     animate={{ width: '85%' }}
-                     className="h-full bg-red-500"
-                   />
+                <div className="mt-3 grid grid-cols-1 gap-2 text-sm text-white/65">
+                  <div className="flex items-center justify-between">
+                    <span>Pc</span>
+                    <span className="font-semibold text-red-300">0.00314</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>d-miss</span>
+                    <span className="font-semibold text-red-300">412.8 m</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Envelope</span>
+                    <span className="font-semibold text-red-300">±84.2 m</span>
+                  </div>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
+        </section>
 
-        {/* Center: Interaction Prompts */}
-        <AnimatePresence>
-          {conjunction && (
-            <motion.div 
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 1.2, opacity: 0 }}
-              className="flex flex-col items-center gap-4"
-            >
-              <div className={`bg-red-500/20 border border-red-500 p-4 flex items-center gap-4 text-red-500 ${isNearingConjunction ? 'animate-ping' : 'animate-pulse'}`}>
-                <AlertTriangle className="w-8 h-8" />
-                <div>
-                  <div className="font-bold uppercase">Conjunction Risk: High</div>
-                  <div className="text-xs">PROBABILITY: 0.0031 // DETERMINISTIC MATCH</div>
-                </div>
-              </div>
-              <button 
-                onClick={onMitigate}
-                className="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-8 transition-colors flex items-center gap-2 group"
-              >
-                <Target className="w-5 h-5 group-hover:scale-125 transition-transform" />
-                INITIATE 1.2 M/S DELTA-V
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Right Panel: Raptor™ Module (Skill 2) */}
-        <motion.div 
-          animate={{ x: active ? 0 : 400, opacity: active ? 1 : 0 }}
-          className={`bg-black/40 backdrop-blur-md border-r-2 ${borderColor} p-6 flex flex-col gap-4 max-w-sm transition-colors duration-500`}
-        >
-          <div className="flex items-center gap-2 border-b border-blue-500/30 pb-2">
-            <Cpu className="w-4 h-4" />
-            <span className="text-sm font-bold uppercase tracking-widest text-white">Raptor™ Module v4</span>
-          </div>
-          
-          <div className="relative aspect-square border border-white/10 flex items-center justify-center p-4 overflow-hidden">
-            <AnimatePresence>
-              {isVerifying && (
-                <motion.div 
-                  initial={{ top: '-100%' }}
-                  animate={{ top: '100%' }}
-                  transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
-                  className="absolute left-0 w-full h-1 bg-white/50 shadow-[0_0_10px_#fff] z-10"
-                />
+        <section className="pointer-events-none flex flex-col justify-center gap-4">
+          <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-4 px-2 text-center">
+            <AnimatePresence mode="wait">
+              {conjunction ? (
+                <motion.div
+                  key="conjunction"
+                  initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 1.02 }}
+                  className="rounded-[28px] border border-red-500/30 bg-red-950/35 px-6 py-5 backdrop-blur-xl"
+                >
+                  <div className="flex items-center justify-center gap-3 text-red-300">
+                    <AlertTriangle className="h-5 w-5" />
+                    <span className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] sm:text-xs sm:tracking-[0.3em]">Conjunction watch</span>
+                  </div>
+                  <div className="mt-3 text-[1.55rem] font-semibold tracking-[-0.03em] text-white sm:text-2xl">
+                    Alert window active
+                  </div>
+                  <div className="mt-2 text-[0.9rem] text-white/60 sm:text-sm">
+                    Review the timeline, switch sensor bands, and initiate the mitigation sequence when ready.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onMitigate}
+                    className="pointer-events-auto mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-red-500 px-5 py-3 text-[0.82rem] font-semibold uppercase tracking-[0.16em] text-white transition-colors hover:bg-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200 sm:text-sm sm:tracking-[0.22em]"
+                  >
+                    <Target className="h-4 w-4" />
+                    Initiate mitigation
+                  </button>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="nominal"
+                  initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  className="rounded-[28px] border border-white/10 bg-black/25 px-6 py-5 backdrop-blur-xl"
+                >
+                    <div className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-white/45 sm:text-xs sm:tracking-[0.32em]">
+                    Mission window
+                  </div>
+                  <div className="mt-3 text-[1.55rem] font-semibold tracking-[-0.03em] text-white sm:text-2xl">
+                    Clean orbit replay with live operator controls
+                  </div>
+                  <div className="mt-2 text-[0.9rem] text-white/60 sm:text-sm">
+                    Use the scrubber to inspect state transitions and keep the visualization centered on decision-making.
+                  </div>
+                </motion.div>
               )}
             </AnimatePresence>
 
-            <svg viewBox="0 0 100 100" className={`w-full h-full ${accentColor} transition-colors duration-500`}>
-               <rect x="30" y="30" width="40" height="40" fill="none" stroke="currentColor" strokeWidth="0.5" />
-               <line x1="15" y1="15" x2="30" y2="30" stroke="currentColor" strokeWidth="0.5" strokeDasharray="2 1" />
-               <line x1="85" y1="15" x2="70" y2="30" stroke="currentColor" strokeWidth="0.5" strokeDasharray="2 1" />
-               <text x="5" y="10" fontSize="4" fill="currentColor">L-BAND ANTENNA [REF-001]</text>
-               <text x="65" y="10" fontSize="4" fill="currentColor">RESILIENCE ENGINE</text>
-            </svg>
-            <div className={`absolute top-2 right-2 text-[1.25rem] ${borderColor.replace('border-', 'bg-')} text-black px-1 font-bold italic transition-colors duration-500`}>REMEDIATION ACTIVE</div>
-          </div>
-
-          <div className="text-[1.5rem] space-y-2 opacity-80 text-white">
-            <p className={`border-l ${borderColor} pl-2 font-bold uppercase transition-colors duration-500`}>Section 13 Remediation Logs</p>
-            <div className="max-h-24 overflow-hidden mask-fade-bottom">
-              <p>[SENSOR: {sensorMode}] FEED SYNCED</p>
-              <p>[T+{currentTime}s] INTEGRITY CHECK: PASSED</p>
-              <p>[T+{currentTime}s] DETERMINISTIC REPLAY ACTIVE</p>
-              {verificationHash && <p className="text-c2-accent-green font-bold uppercase">[T+{currentTime}s] AUDIT LOG: SIGNED</p>}
+            <div className="grid w-full grid-cols-2 gap-2 text-left sm:grid-cols-4 sm:gap-3">
+              {[
+                { label: 'Latency', value: '12 ms' },
+                { label: 'Uplink', value: '4.2 GB/s' },
+                { label: 'Deterministic', value: 'True' },
+                { label: 'Mode', value: sensorMode },
+              ].map((item) => (
+                <div key={item.label} className="rounded-2xl border border-white/10 bg-black/30 px-3 py-3 backdrop-blur-md sm:px-4">
+                  <div className="text-[0.6rem] uppercase tracking-[0.22em] text-white/45 sm:text-[0.65rem] sm:tracking-[0.28em]">{item.label}</div>
+                  <div className="mt-1 text-[0.82rem] font-semibold uppercase tracking-[0.14em] text-white sm:text-sm sm:tracking-[0.18em]">{item.value}</div>
+                </div>
+              ))}
             </div>
           </div>
-        </motion.div>
-      </div>
+        </section>
 
-      {/* Footer: The Time Machine Scrubber */}
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-2 pointer-events-auto">
-          <div className="flex justify-between text-[1.5rem] tracking-widest uppercase text-white">
-             <div className="flex items-center gap-2">
-                <Clock className="w-3 h-3" />
-                Deterministic Time Machine
-             </div>
-             <div className="flex items-center gap-2 opacity-60">
-                <Zap className="w-3 h-3 text-yellow-400" />
-                SCRUB TO VALIDATE TEMPORAL STATES
-             </div>
+        <section className="pointer-events-auto flex flex-col gap-4">
+          <div className="rounded-[28px] border border-white/10 bg-black/45 p-4 backdrop-blur-xl shadow-[0_16px_60px_rgba(0,0,0,0.28)] sm:p-5">
+            <div className="flex items-center gap-2 border-b border-white/10 pb-3">
+              <Clock className="h-4 w-4" />
+              <span className="text-[0.9rem] font-semibold uppercase tracking-[0.22em] text-white sm:text-sm sm:tracking-[0.24em]">Timeline</span>
+            </div>
+
+            <div className="mt-4 space-y-3 text-sm">
+              <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-[0.92rem] text-white/75 sm:text-sm">
+                <span>Replay phase</span>
+                <span className="font-semibold text-white">{conjunction ? 'Threat window' : 'Mitigated orbit'}</span>
+              </div>
+              <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-[0.92rem] text-white/75 sm:text-sm">
+                <span>Sensor band</span>
+                <span className="font-semibold text-white">{sensorMode}</span>
+              </div>
+              <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-[0.92rem] text-white/75 sm:text-sm">
+                <span>Integrity token</span>
+                <span className="font-semibold text-white">{verificationHash ?? 'Pending'}</span>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-[0.92rem] text-white/65 sm:text-sm">
+              <div className="flex items-center gap-2 text-white/85">
+                <Zap className="h-4 w-4 text-c2-accent-cyan" />
+                Operator notes
+              </div>
+              <div className="mt-2 leading-relaxed">
+                The dashboard now treats sensor modes, verification, and mitigation as first-class state, not decorative overlays.
+              </div>
+            </div>
           </div>
-          <input 
-            type="range" 
-            min="0" 
-            max="20000" 
-            step="10" 
-            value={currentTime} 
-            onChange={(e) => onTimeChange(parseInt(e.target.value))}
-            className={`w-full h-1 bg-white/10 appearance-none cursor-pointer rounded-full accent-white`}
-          />
-        </div>
-        
-        <div className="flex justify-between items-end">
-          <div className="flex gap-8 text-[1.5rem] tracking-widest uppercase text-white/60">
+
+          <div className="rounded-[28px] border border-white/10 bg-black/45 p-4 backdrop-blur-xl shadow-[0_16px_60px_rgba(0,0,0,0.28)] sm:p-5">
+            <div className="flex items-center gap-2 border-b border-white/10 pb-3">
+              <Radio className="h-4 w-4" />
+              <span className="text-[0.9rem] font-semibold uppercase tracking-[0.22em] text-white sm:text-sm sm:tracking-[0.24em]">Telemetry</span>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-white/65">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                <div className="text-[0.6rem] uppercase tracking-[0.22em] text-white/45 sm:text-[0.65rem] sm:tracking-[0.28em]">Altitude</div>
+                <div className="mt-1 text-[0.98rem] font-semibold text-white sm:text-base">{altitude} km</div>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                <div className="text-[0.6rem] uppercase tracking-[0.22em] text-white/45 sm:text-[0.65rem] sm:tracking-[0.28em]">Velocity</div>
+                <div className="mt-1 text-[0.98rem] font-semibold text-white sm:text-base">{velocity} km/s</div>
+              </div>
+            </div>
+
+            <div className="mt-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-[0.92rem] text-white/70 sm:text-sm">
+              <div className="flex items-center gap-2 text-white/85">
+                <Activity className="h-4 w-4" />
+                Activity log
+              </div>
+              <div className="mt-3 space-y-2 text-white/60">
+                <div>[SENSOR] {sensorMode} feed synchronized</div>
+                <div>[T+{currentTime}s] Integrity check {isVerifying ? 'running' : verificationHash ? 'passed' : 'idle'}</div>
+                <div>[T+{currentTime}s] Deterministic replay active</div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer className="pointer-events-auto rounded-[28px] border border-white/10 bg-black/45 px-4 py-4 backdrop-blur-xl shadow-[0_16px_60px_rgba(0,0,0,0.28)] sm:px-5">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2 text-[0.62rem] uppercase tracking-[0.18em] text-white/55 sm:flex-row sm:items-center sm:justify-between sm:text-[0.7rem] sm:tracking-[0.3em]">
             <div className="flex items-center gap-2">
-               <Radio className="w-3 h-3" />
-               UPLINK: ACTIVE [4.2 GB/S]
+              <Clock className="h-3.5 w-3.5" />
+              Temporal scrubber
             </div>
-            <div>LATENCY: 12ms // DETERMINISTIC: TRUE</div>
+            <div className="hidden items-center gap-2 text-white/45 sm:flex">
+              <Zap className="h-3.5 w-3.5 text-c2-accent-cyan" />
+              Scrub to validate state transitions
+            </div>
           </div>
-          <div className="text-[1.5rem] opacity-40 italic font-serif text-white">
-            "The new frontier of spatial intelligence."
+
+          <input
+            type="range"
+            min="0"
+            max="20000"
+            step="10"
+            value={currentTime}
+            onChange={(event) => onTimeChange(Number(event.target.value))}
+            aria-label="Temporal scrubber"
+            className="w-full accent-c2-accent-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+          />
+
+          <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-white/60">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[0.68rem] uppercase tracking-[0.14em] text-white/70 sm:px-3 sm:text-sm sm:tracking-[0.2em]">
+                T+{currentTime}s
+              </span>
+              <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[0.68rem] uppercase tracking-[0.14em] text-white/70 sm:px-3 sm:text-sm sm:tracking-[0.2em]">
+                {conjunction ? 'Conjunction watch' : 'Mitigated orbit'}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[0.68rem] uppercase tracking-[0.14em] text-white/70 sm:px-3 sm:text-sm sm:tracking-[0.2em]">
+                Latency 12 ms
+              </div>
+              <div className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[0.68rem] uppercase tracking-[0.14em] text-white/70 sm:px-3 sm:text-sm sm:tracking-[0.2em]">
+                Uplink active
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      </footer>
     </div>
-  );
-};
+  )
+}

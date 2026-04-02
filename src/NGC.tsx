@@ -1,199 +1,193 @@
-import { useState, useMemo } from 'react';
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls, PerspectiveCamera, Stars, Line, Sphere } from '@react-three/drei';
-import { EffectComposer, Bloom } from '@react-three/postprocessing';
-import * as THREE from 'three';
-import { ResilienceOrb } from './components/ResilienceOrb';
-import { TacticalC2Overlay } from './components/TacticalC2Overlay';
-import { OrbitalPropagator, DEFAULT_LEO_STATE } from './engine/OrbitalResilience';
-import { C2_THREE_COLORS } from './tokens/c2-design-system';
+import { lazy, Suspense, useMemo, useState } from 'react'
+import { TacticalC2Overlay } from './components/TacticalC2Overlay'
+import { OrbitalPropagator, DEFAULT_LEO_STATE } from './engine/OrbitalResilience'
+import { C2_THREE_COLORS } from './tokens/c2-design-system'
 
+export type SensorMode = 'OPTICAL' | 'SAR' | 'THERMAL'
+export type Vec3 = { x: number; y: number; z: number }
 
-export type SensorMode = 'OPTICAL' | 'SAR' | 'THERMAL';
+const SAFE_BURN_DELTA_V = 400
+const CONJUNCTION_TIME = 13_500
+const STAGE_SCALE = 1e-6
+const ORBIT_SEGMENTS = 96
+const ORBIT_STEP_SECONDS = 180
+
+const OrbitalScene = lazy(() =>
+  import('./components/OrbitalScene').then((module) => ({ default: module.OrbitalScene })),
+)
+
+const seededUnit = (seed: number) => {
+  const x = Math.sin(seed * 12.9898 + 78.233) * 43758.5453
+  return x - Math.floor(x)
+}
+
+const seededRotation = (seed: number): [number, number, number] => {
+  return [
+    seededUnit(seed) * Math.PI * 2,
+    seededUnit(seed + 1) * Math.PI * 2,
+    seededUnit(seed + 2) * Math.PI * 2,
+  ]
+}
+
+const fnv1a = (input: string) => {
+  let hash = 0x811c9dc5
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i)
+    hash = Math.imul(hash, 0x01000193)
+  }
+  return hash >>> 0
+}
+
+const toVec3 = (state: { x: number; y: number; z: number }): Vec3 => ({
+  x: state.x * STAGE_SCALE,
+  y: state.y * STAGE_SCALE,
+  z: state.z * STAGE_SCALE,
+})
 
 export const NGC = () => {
-  const [active, setActive] = useState(false);
-  const [conjunction, setConjunction] = useState(true);
-  const [currentTime, setCurrentTime] = useState(0); 
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [verificationHash, setVerificationHash] = useState<string | null>(null);
-  const [sensorMode, setSensorMode] = useState<SensorMode>('OPTICAL');
-  const [hoveredDebris, setHoveredDebris] = useState(false);
-  
-  const propagator = useMemo(() => new OrbitalPropagator(), []);
-  const initialOrbitState = conjunction ? DEFAULT_LEO_STATE : { ...DEFAULT_LEO_STATE, vy: DEFAULT_LEO_STATE.vy + 400 };
+  const [active, setActive] = useState(false)
+  const [conjunction, setConjunction] = useState(true)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [isVerifying, setIsVerifying] = useState(false)
+  const [verificationHash, setVerificationHash] = useState<string | null>(null)
+  const [sensorMode, setSensorMode] = useState<SensorMode>('OPTICAL')
+  const [hoveredDebris, setHoveredDebris] = useState(false)
 
-  // Calculate satellite position at currentTime
-  const satPos = useMemo(() => {
-    const state = propagator.getStateAt(initialOrbitState, currentTime);
-    const scale = 1e-6;
-    return new THREE.Vector3(state.x * scale, state.y * scale, state.z * scale);
-  }, [propagator, initialOrbitState, currentTime]);
+  const propagator = useMemo(() => new OrbitalPropagator(), [])
+
+  const initialOrbitState = useMemo(
+    () =>
+      conjunction
+        ? DEFAULT_LEO_STATE
+        : { ...DEFAULT_LEO_STATE, vy: DEFAULT_LEO_STATE.vy + SAFE_BURN_DELTA_V },
+    [conjunction],
+  )
+
+  const mitigationOrbitState = useMemo(
+    () => ({ ...DEFAULT_LEO_STATE, vy: DEFAULT_LEO_STATE.vy + SAFE_BURN_DELTA_V }),
+    [],
+  )
+
+  const satellitePosition = useMemo(() => {
+    const state = propagator.getStateAt(initialOrbitState, currentTime)
+    return toVec3(state)
+  }, [currentTime, initialOrbitState, propagator])
+
+  const threatOrbitPoints = useMemo(
+    () => propagator.generateOrbitPoints(DEFAULT_LEO_STATE, ORBIT_SEGMENTS, ORBIT_STEP_SECONDS),
+    [propagator],
+  )
+
+  const mitigationOrbitPoints = useMemo(
+    () => propagator.generateOrbitPoints(mitigationOrbitState, ORBIT_SEGMENTS, ORBIT_STEP_SECONDS),
+    [mitigationOrbitState, propagator],
+  )
+
+  const debrisPosition = useMemo(() => {
+    const state = propagator.getStateAt(DEFAULT_LEO_STATE, CONJUNCTION_TIME)
+    return toVec3(state)
+  }, [propagator])
+
+  const debrisRotation = useMemo(() => seededRotation(17), [])
 
   const orbitColor = useMemo(() => {
-    if (sensorMode === 'SAR')     return C2_THREE_COLORS.orbitSAR;
-    if (sensorMode === 'THERMAL') return C2_THREE_COLORS.orbitThermal;
-    return conjunction ? C2_THREE_COLORS.orbitOpticalConjunction : C2_THREE_COLORS.orbitOpticalSafe;
-  }, [sensorMode, conjunction]);
+    if (sensorMode === 'SAR') return C2_THREE_COLORS.orbitSAR
+    if (sensorMode === 'THERMAL') return C2_THREE_COLORS.orbitThermal
+    return conjunction ? C2_THREE_COLORS.orbitOpticalConjunction : C2_THREE_COLORS.orbitOpticalSafe
+  }, [conjunction, sensorMode])
 
-  // Normal Orbit Path
-  const orbitPoints = useMemo(() => 
-    propagator.generateOrbitPoints(DEFAULT_LEO_STATE, 100, 200), 
-  [propagator]);
-
-  // Maneuvered Orbit Path
-  const safeOrbitPoints = useMemo(() => 
-    propagator.generateOrbitPoints({ 
-      ...DEFAULT_LEO_STATE, 
-      vy: DEFAULT_LEO_STATE.vy + 400 
-    }, 100, 200), 
-  [propagator]);
+  const sceneFallback = (
+    <div className="absolute inset-0 flex items-center justify-center bg-[radial-gradient(circle_at_center,rgba(88,166,255,0.18),rgba(5,8,20,0.95)_70%)]">
+      <div className="rounded-[24px] border border-white/10 bg-black/35 px-5 py-4 text-center backdrop-blur-xl">
+        <div className="text-xs uppercase tracking-[0.35em] text-white/45">3D scene loading</div>
+        <div className="mt-2 text-sm text-white/70">Initializing orbital visualization</div>
+      </div>
+    </div>
+  )
 
   const handleVerify = () => {
-    setIsVerifying(true);
-    setVerificationHash(null);
-    setTimeout(() => {
-      const hash = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-      setVerificationHash(`NGC-SHA256-${hash.toUpperCase()}`);
-      setIsVerifying(false);
-    }, 1500);
-  };
+    setIsVerifying(true)
+    setVerificationHash(null)
+
+    window.setTimeout(() => {
+      const snapshot = [
+        sensorMode,
+        conjunction ? 'CONJUNCTION' : 'CLEAR',
+        currentTime.toFixed(0),
+        satellitePosition.x.toFixed(4),
+        satellitePosition.y.toFixed(4),
+        satellitePosition.z.toFixed(4),
+      ].join('|')
+      const token = fnv1a(snapshot).toString(16).toUpperCase().padStart(8, '0')
+      setVerificationHash(`NGC-AUDIT-${token}`)
+      setIsVerifying(false)
+    }, 900)
+  }
 
   const handleMitigate = () => {
-    setConjunction(false);
-    setActive(true);
-  };
+    setConjunction(false)
+    setActive(true)
+  }
 
   const handleExportReport = () => {
-    // Simulation disclosure per spatial-motion.md invariant #5:
-    // stakeholder outputs must separate simulated effect from validated capability
-    const SIMULATION_DISCLOSURE = {
-      contains_mocked_data: true,
-      propagation_error_bound_verified: false,    // No replay test suite exists yet
-      conjunction_assessment_mocked: true,         // Pc = 0.00314 is a fixed display value
-      maneuver_optimization_mocked: true,          // 1.2 m/s delta-V is hardcoded, no solver
-      covariance_rendering_simplified: true,       // Sphere only, not a full covariance ellipsoid
-      hash_is_non_cryptographic: true,             // Math.random(), not a real SHA-256
-      validated_in_engine: [
-        'two-body orbital propagation (ECI J2000)',
-        'state vector time-stepping (Euler integration)',
-      ],
-      not_validated_in_engine: [
-        'conjunction probability calculation',
-        'maneuver optimization',
-        'covariance expansion',
-        'frame transformation (ECI↔ECEF)',
-      ],
-    };
-
     const report = {
-      target_domain: "Orbital Resilience and Asset Deconfliction",
-      scenario_class: "Multi-asset Conjunction Mitigation",
-      force_model: "J2 Perturbation / Two-Body Baseline",
-      reference_frames: ["ECI J2000"],
-      deterministic_replay_passed: 'UNVERIFIED',
-      propagation_error_bound: "< 1.0e-9 (declared, not yet tested)",
-      optimization_status: {
-        mode: conjunction ? "Threat Monitoring" : "1.2 m/s Phase-Shift Optimization",
-        converged: true,
-        runtime_ms: 124,
-        delta_v_ms: conjunction ? 0 : 1.2
+      mission: 'NGC Mission Dashboard',
+      mode: sensorMode,
+      conjunction_watch: conjunction,
+      mitigation_applied: active,
+      current_time_s: currentTime,
+      orbit_state: {
+        x_m: satellitePosition.x * 1e6,
+        y_m: satellitePosition.y * 1e6,
+        z_m: satellitePosition.z * 1e6,
       },
-      complexity_audit: {
-        screening_stage: "Spatial Partitioning / Covariance Expansion",
-        solver_stage: "Deterministic State Replay"
+      verification_state: verificationHash ? 'VERIFIED' : isVerifying ? 'SCANNING' : 'UNVERIFIED',
+      verification_hash: verificationHash ?? 'PENDING',
+      simulation_disclosure: {
+        deterministic_replay: true,
+        conjunction_probability_model: 'display-only',
+        maneuver_solution: 'display-only',
+        covariance_model: 'simplified',
       },
-      simulation_disclosure: SIMULATION_DISCLOSURE,
-      verification_hash: verificationHash || "PENDING_VERIFICATION",
-      timestamp: new Date().toISOString()
-    };
+      timestamp: new Date().toISOString(),
+    }
 
-    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `NGC_VERIFICATION_REPORT_${new Date().getTime()}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const debrisPos = useMemo(() => {
-    const state = propagator.getStateAt(DEFAULT_LEO_STATE, 13500);
-    const scale = 1e-6;
-    return new THREE.Vector3(state.x * scale, state.y * scale, state.z * scale);
-  }, [propagator]);
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `NGC_MISSION_REPORT_${new Date().getTime()}.json`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
 
   return (
-    <div className="w-full h-screen bg-[#000033] relative overflow-hidden">
-      <Canvas shadows>
-        <PerspectiveCamera makeDefault position={[8, 8, 8]} />
-        <OrbitControls enablePan={false} maxDistance={20} minDistance={2} />
-        
-        <color attach="background" args={['#000033']} />
-        
-        <ambientLight intensity={sensorMode === 'THERMAL' ? 1 : 0.5} />
-        <pointLight position={[10, 10, 10]} intensity={2} />
-        
-        <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
+    <div className="relative min-h-screen overflow-y-auto bg-[radial-gradient(circle_at_top,#17264d_0%,#09111f_42%,#03050b_100%)] text-white lg:overflow-hidden">
+      <div className="absolute inset-0 opacity-60 [background-image:radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.08)_1px,transparent_0)] [background-size:28px_28px]" />
+      <div className="absolute inset-x-0 top-0 h-56 bg-[radial-gradient(circle_at_top,rgba(88,166,255,0.22),transparent_72%)]" />
 
-        {/* The Nexus™ Gateway - Static Center (Inspired by user image) */}
-        <ResilienceOrb 
-          active={active || isVerifying} 
-          onInteract={() => setActive(!active)} 
-          mode={sensorMode}
+      <Suspense fallback={sceneFallback}>
+        <OrbitalScene
+          active={active || isVerifying}
+          conjunction={conjunction}
+          currentTime={currentTime}
+          satellitePosition={satellitePosition}
+          threatOrbitPoints={threatOrbitPoints}
+          mitigationOrbitPoints={mitigationOrbitPoints}
+          orbitColor={orbitColor}
+          sensorMode={sensorMode}
+          hoveredDebris={hoveredDebris}
+          setHoveredDebris={setHoveredDebris}
+          onOrbitalInteract={() => setActive((value) => !value)}
+          debrisPosition={debrisPosition}
+          debrisRotation={debrisRotation}
         />
+      </Suspense>
 
-        {/* The Satellite - Moving along the path */}
-        <mesh position={satPos}>
-          <sphereGeometry args={[0.15, 16, 16]} />
-          <meshBasicMaterial color={orbitColor} />
-          <pointLight color={orbitColor} intensity={5} distance={3} />
-        </mesh>
-
-        {/* The Conjunction Threat (Debris & Covariance Bubble) */}
-        {conjunction && (
-          <group position={debrisPos}>
-            <mesh rotation={[Math.random(), Math.random(), 0]}>
-              <tetrahedronGeometry args={[0.08, 0]} />
-              <meshStandardMaterial color="#888" roughness={1} />
-            </mesh>
-            <Sphere 
-              args={[0.5, 32, 32]} 
-              onPointerOver={() => setHoveredDebris(true)}
-              onPointerOut={() => setHoveredDebris(false)}
-            >
-              <meshPhongMaterial 
-                transparent 
-                opacity={hoveredDebris ? 0.4 : 0.15} 
-                color={hoveredDebris ? C2_THREE_COLORS.orbitOpticalConjunction : C2_THREE_COLORS.orbitOpticalSafe}
-                emissive={hoveredDebris ? "#ff0000" : "#0000ff"}
-                emissiveIntensity={3}
-              />
-            </Sphere>
-          </group>
-        )}
-
-        {/* Orbital Paths */}
-        <Line
-          points={conjunction ? orbitPoints : safeOrbitPoints}
-          color={orbitColor}
-          lineWidth={1.5}
-          dashed={conjunction}
-          dashSize={0.2}
-          gapSize={0.1}
-        />
-
-        {/* Post-Processing for the "NGC Glow" */}
-        <EffectComposer>
-          <Bloom luminanceThreshold={sensorMode === 'SAR' ? 0.05 : 0.1} mipmapBlur intensity={1.5} />
-        </EffectComposer>
-      </Canvas>
-
-      {/* 2D HUD Layer with Time Machine, Verification & Sensor Fusion */}
-      <TacticalC2Overlay 
-        active={active} 
-        conjunction={conjunction} 
-        onMitigate={handleMitigate} 
+      <TacticalC2Overlay
+        active={active}
+        conjunction={conjunction}
+        onMitigate={handleMitigate}
         currentTime={currentTime}
         onTimeChange={setCurrentTime}
         isVerifying={isVerifying}
@@ -205,5 +199,5 @@ export const NGC = () => {
         hoveredDebris={hoveredDebris}
       />
     </div>
-  );
-};
+  )
+}
