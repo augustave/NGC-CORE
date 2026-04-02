@@ -5,15 +5,6 @@ import * as THREE from 'three';
 import gsap from 'gsap';
 import { C2_THREE_COLORS } from '../tokens/c2-design-system';
 
-// Motion Narrative (spatial-motion.md invariant: motion explains system logic)
-const MOTION_NARRATIVE = {
-  rotation:          'Orbital angular momentum — rate represents mean motion of the asset',
-  distortionAmount:  'Uncertainty envelope — higher distort = growing conjunction risk window',
-  distortionSpeed:   'Covariance growth rate — faster = rapid uncertainty propagation when active',
-  emissiveIntensity: 'Threat proximity — peaks when conjunction is imminent (active state)',
-  colorTransition:   'Sensor mode — OPTICAL=blue, SAR=green (L-band), THERMAL=amber',
-} as const;
-
 export const ResilienceOrb = ({ active = false, mode = 'OPTICAL', onInteract = () => {} }: any) => {
   const meshRef = useRef<THREE.Mesh>(null!);
   const materialRef = useRef<any>(null!);
