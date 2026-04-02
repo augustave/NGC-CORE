@@ -22,6 +22,7 @@ import type { SensorMode } from '../NGC'
 export interface TacticalC2OverlayProps {
   active: boolean
   conjunction: boolean
+  mitigated: boolean
   onMitigate: () => void
   currentTime: number
   onTimeChange: (time: number) => void
@@ -37,6 +38,7 @@ export interface TacticalC2OverlayProps {
 export const TacticalC2Overlay = ({
   active,
   conjunction,
+  mitigated,
   onMitigate,
   currentTime,
   onTimeChange,
@@ -67,7 +69,7 @@ export const TacticalC2Overlay = ({
     tone === 'green' ? 'border-c2-accent-green/60' : tone === 'amber' ? 'border-c2-accent-amber/60' : 'border-c2-accent-blue/60'
   const surfaceBorder =
     tone === 'green' ? 'border-c2-accent-green/25' : tone === 'amber' ? 'border-c2-accent-amber/25' : 'border-c2-accent-blue/25'
-  const statusText = conjunction ? 'CONJUNCTION WATCH' : active ? 'MITIGATION APPLIED' : 'NOMINAL'
+  const statusText = conjunction ? 'CONJUNCTION WATCH' : mitigated ? 'MITIGATION APPLIED' : 'NOMINAL'
 
   return (
     <div className={`pointer-events-none relative flex min-h-screen flex-col gap-4 overflow-y-auto p-4 sm:p-6 lg:absolute lg:inset-0 lg:min-h-0 lg:overflow-hidden lg:p-8 ${accentColor} transition-colors duration-300`}>
@@ -93,7 +95,7 @@ export const TacticalC2Overlay = ({
               <span>System state</span>
               <Shield className="h-3.5 w-3.5" />
             </div>
-            <div className={`mt-2 text-sm font-semibold uppercase tracking-[0.28em] ${isNearingConjunction ? 'text-c2-accent-amber' : 'text-c2-accent-green'}`}>
+            <div className={`mt-2 text-sm font-semibold uppercase tracking-[0.28em] ${conjunction ? 'text-c2-accent-red' : mitigated ? 'text-c2-accent-green' : 'text-c2-accent-green'}`}>
               {statusText}
             </div>
           </div>
@@ -310,10 +312,14 @@ export const TacticalC2Overlay = ({
             <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-[0.92rem] text-white/65 sm:text-sm">
               <div className="flex items-center gap-2 text-white/85">
                 <Zap className="h-4 w-4 text-c2-accent-cyan" />
-                Operator notes
+                Mission notes
               </div>
               <div className="mt-2 leading-relaxed">
-                The dashboard now treats sensor modes, verification, and mitigation as first-class state, not decorative overlays.
+                {conjunction
+                  ? 'Conjunction watch active. Review the timeline and initiate mitigation when ready.'
+                  : mitigated
+                    ? '1.2 m/s delta-V applied. Orbit deconflicted. Verify section integrity and export report.'
+                    : 'System nominal. No active conjunction threats detected in current window.'}
               </div>
             </div>
           </div>
@@ -322,17 +328,6 @@ export const TacticalC2Overlay = ({
             <div className="flex items-center gap-2 border-b border-white/10 pb-3">
               <Radio className="h-4 w-4" />
               <span className="text-[0.9rem] font-semibold uppercase tracking-[0.22em] text-white sm:text-sm sm:tracking-[0.24em]">Telemetry</span>
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-white/65">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
-                <div className="text-[0.6rem] uppercase tracking-[0.22em] text-white/45 sm:text-[0.65rem] sm:tracking-[0.28em]">Altitude</div>
-                <div className="mt-1 text-[0.98rem] font-semibold text-white sm:text-base">{altitude} km</div>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
-                <div className="text-[0.6rem] uppercase tracking-[0.22em] text-white/45 sm:text-[0.65rem] sm:tracking-[0.28em]">Velocity</div>
-                <div className="mt-1 text-[0.98rem] font-semibold text-white sm:text-base">{velocity} km/s</div>
-              </div>
             </div>
 
             <div className="mt-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-[0.92rem] text-white/70 sm:text-sm">
