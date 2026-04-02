@@ -64,7 +64,8 @@ const ResilienceOrb = ({
     <button
       type="button"
       onClick={onOrbitalInteract}
-      className="pointer-events-auto absolute left-1/2 top-1/2 z-10 flex aspect-square w-[min(34vw,23rem)] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-transparent p-0 outline-none transition-transform duration-300 hover:scale-[1.01] focus-visible:ring-2 focus-visible:ring-white/70"
+      aria-pressed={active}
+      className="pointer-events-auto absolute left-1/2 top-1/2 z-50 flex aspect-square w-[min(34vw,23rem)] -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-transparent p-0 outline-none transition-transform duration-300 hover:scale-[1.01] focus-visible:ring-2 focus-visible:ring-white/70 touch-manipulation"
       aria-label="Toggle orbital core"
     >
       <span
@@ -90,8 +91,15 @@ const ResilienceOrb = ({
           boxShadow: active ? `0 0 18px ${tone}99` : 'none',
         }}
       />
-      <span className="absolute bottom-8 left-1/2 -translate-x-1/2 rounded-full border border-white/10 bg-black/35 px-3 py-1 text-[0.7rem] uppercase tracking-[0.32em] text-white/75 backdrop-blur-md">
+      <span className="absolute bottom-8 left-1/2 -translate-x-1/2 rounded-full border border-white/10 bg-black/35 px-3 py-1 text-[0.7rem] uppercase tracking-[0.24em] text-white/75 backdrop-blur-md">
         {sensorMode} core
+      </span>
+      <span
+        className={`absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full px-2.5 py-1 text-[0.58rem] uppercase tracking-[0.26em] backdrop-blur-md ${
+          active ? 'border border-c2-accent-green/30 bg-c2-accent-green/15 text-c2-accent-green' : 'border border-white/10 bg-black/35 text-white/60'
+        }`}
+      >
+        {active ? 'ACTIVE' : 'IDLE'}
       </span>
     </button>
   )
