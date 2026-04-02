@@ -74,7 +74,7 @@ const ResilienceOrb = ({
       type="button"
       onClick={handleClick}
       aria-pressed={active}
-      className={`pointer-events-auto absolute left-1/2 top-1/2 z-50 flex aspect-square w-[min(34vw,23rem)] -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-transparent p-0 outline-none transition-[transform,filter,box-shadow,border-color] duration-500 touch-manipulation ${
+      className={`pointer-events-auto absolute left-1/2 top-1/2 z-[70] flex aspect-square w-[min(34vw,23rem)] -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-transparent p-0 outline-none transition-[transform,filter,box-shadow,border-color] duration-500 touch-manipulation ${
         active ? 'scale-[1.05] border-white/20' : 'hover:scale-[1.01]'
       }`}
       aria-label="Toggle orbital core"
