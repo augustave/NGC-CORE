@@ -72,7 +72,7 @@ export const TacticalC2Overlay = ({
   const statusText = conjunction ? 'CONJUNCTION WATCH' : mitigated ? 'MITIGATION APPLIED' : 'NOMINAL'
 
   return (
-    <div className={`pointer-events-none relative flex min-h-screen flex-col gap-4 overflow-y-auto p-4 sm:p-6 lg:absolute lg:inset-0 lg:min-h-0 lg:overflow-hidden lg:p-8 ${accentColor} transition-colors duration-300`}>
+    <div className={`pointer-events-none relative z-[80] flex min-h-screen flex-col gap-4 overflow-y-auto p-4 sm:p-6 lg:absolute lg:inset-0 lg:min-h-0 lg:overflow-hidden lg:p-8 ${accentColor} transition-colors duration-300`}>
       <header className="pointer-events-auto flex flex-col gap-4 rounded-[28px] border border-white/10 bg-black/40 px-4 py-4 backdrop-blur-xl shadow-[0_16px_80px_rgba(0,0,0,0.35)] sm:px-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-3">
