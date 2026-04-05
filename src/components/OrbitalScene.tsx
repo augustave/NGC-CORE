@@ -17,6 +17,7 @@ export interface OrbitalSceneProps {
   onOrbitalInteract: () => void
   debrisPosition: Vec3
   debrisRotation: [number, number, number]
+  dimOrb: boolean
 }
 
 type Star = {
@@ -188,6 +189,7 @@ export const OrbitalScene = ({
   onOrbitalInteract,
   debrisPosition,
   debrisRotation,
+  dimOrb,
 }: OrbitalSceneProps) => {
   const stars = useMemo(() => buildStars(), [])
   const satellite = useMemo(() => toPoint(satellitePosition), [satellitePosition])
@@ -266,7 +268,7 @@ export const OrbitalScene = ({
         )}
       </svg>
 
-      <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${conjunction ? 'pointer-events-none opacity-40' : ''}`}>
+      <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${dimOrb ? 'pointer-events-none opacity-40' : ''}`}>
         <ResilienceOrb active={active} sensorMode={sensorMode} onOrbitalInteract={onOrbitalInteract} />
       </div>
 

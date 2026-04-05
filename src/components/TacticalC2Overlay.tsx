@@ -14,6 +14,7 @@ import {
   Search,
   Shield,
   Thermometer,
+  Play,
   Target,
   Zap,
 } from 'lucide-react'
@@ -23,7 +24,9 @@ export interface TacticalC2OverlayProps {
   active: boolean
   conjunction: boolean
   mitigated: boolean
+  replayStarted: boolean
   onMitigate: () => void
+  onBeginReplay: () => void
   currentTime: number
   onTimeChange: (time: number) => void
   isVerifying: boolean
@@ -36,10 +39,12 @@ export interface TacticalC2OverlayProps {
 }
 
 export const TacticalC2Overlay = ({
-  active,
+  active: _active,
   conjunction,
   mitigated,
+  replayStarted,
   onMitigate,
+  onBeginReplay,
   currentTime,
   onTimeChange,
   isVerifying,
@@ -59,8 +64,6 @@ export const TacticalC2Overlay = ({
 
   const altitude = useMemo(() => (7102.4 + Math.sin(currentTime * 0.01) * 5).toFixed(1), [currentTime])
   const velocity = useMemo(() => (7.52 - Math.cos(currentTime * 0.01) * 0.05).toFixed(2), [currentTime])
-
-  const isNearingConjunction = conjunction && currentTime > 12_000 && currentTime < 15_000
 
   const tone = sensorMode === 'SAR' ? 'green' : sensorMode === 'THERMAL' ? 'amber' : 'blue'
   const accentColor =
@@ -222,54 +225,51 @@ export const TacticalC2Overlay = ({
 
         <section className="pointer-events-none flex flex-col justify-center gap-4">
           <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-4 px-2 text-center">
-            <AnimatePresence mode="wait">
-              {conjunction ? (
-                <motion.div
-                  key="conjunction"
-                  initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.96 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 1.02 }}
-                  className="pointer-events-auto relative z-[90] rounded-[28px] border border-red-500/30 bg-red-950/35 px-6 py-5 backdrop-blur-xl"
+            {conjunction && (
+              <div className="pointer-events-auto relative z-[90] animate-[fadeIn_0.3s_ease-out] rounded-[28px] border border-red-500/30 bg-red-950/35 px-6 py-5 backdrop-blur-xl">
+                <div className="flex items-center justify-center gap-3 text-red-300">
+                  <AlertTriangle className="h-5 w-5" />
+                  <span className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] sm:text-xs sm:tracking-[0.3em]">Conjunction watch</span>
+                </div>
+                <div className="mt-3 text-[1.55rem] font-semibold tracking-[-0.03em] text-white sm:text-2xl">
+                  Alert window active
+                </div>
+                <div className="mt-2 text-[0.9rem] text-white/60 sm:text-sm">
+                  Review the timeline, switch sensor bands, and initiate the mitigation sequence when ready.
+                </div>
+                <button
+                  type="button"
+                  onClick={onMitigate}
+                  className="pointer-events-auto mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-red-500 px-5 py-3 text-[0.82rem] font-semibold uppercase tracking-[0.16em] text-white transition-colors hover:bg-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200 sm:text-sm sm:tracking-[0.22em]"
                 >
-                  <div className="flex items-center justify-center gap-3 text-red-300">
-                    <AlertTriangle className="h-5 w-5" />
-                    <span className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] sm:text-xs sm:tracking-[0.3em]">Conjunction watch</span>
-                  </div>
-                  <div className="mt-3 text-[1.55rem] font-semibold tracking-[-0.03em] text-white sm:text-2xl">
-                    Alert window active
-                  </div>
-                  <div className="mt-2 text-[0.9rem] text-white/60 sm:text-sm">
-                    Review the timeline, switch sensor bands, and initiate the mitigation sequence when ready.
-                  </div>
-                  <button
-                    type="button"
-                    onClick={onMitigate}
-                    className="pointer-events-auto mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-red-500 px-5 py-3 text-[0.82rem] font-semibold uppercase tracking-[0.16em] text-white transition-colors hover:bg-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200 sm:text-sm sm:tracking-[0.22em]"
-                  >
-                    <Target className="h-4 w-4" />
-                    Initiate mitigation
-                  </button>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="nominal"
-                  initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  className="pointer-events-none rounded-[28px] border border-white/10 bg-black/25 px-6 py-5 backdrop-blur-xl"
+                  <Target className="h-4 w-4" />
+                  Initiate mitigation
+                </button>
+              </div>
+            )}
+            {!conjunction && !replayStarted && (
+              <div className="pointer-events-auto relative z-[90] animate-[fadeIn_0.3s_ease-out] rounded-[28px] border border-c2-accent-green/20 bg-black/80 px-6 py-5 shadow-2xl backdrop-blur-xl">
+                <div className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-c2-accent-green sm:text-xs sm:tracking-[0.32em]">
+                  {mitigated ? 'Mitigation complete' : 'Mission window'}
+                </div>
+                <div className="mt-3 text-[1.55rem] font-semibold tracking-[-0.03em] text-white sm:text-2xl">
+                  {mitigated ? 'Orbit deconflicted — ready for replay' : 'Clean orbit replay'}
+                </div>
+                <div className="mt-2 text-[0.9rem] text-white/60 sm:text-sm">
+                  {mitigated
+                    ? '1.2 m/s delta-V applied. Use the scrubber to verify the mitigated trajectory.'
+                    : 'Use the scrubber to inspect state transitions and keep the visualization centered on decision-making.'}
+                </div>
+                <button
+                  type="button"
+                  onClick={onBeginReplay}
+                  className="mt-4 inline-flex items-center justify-center gap-2 rounded-full border border-c2-accent-green/40 bg-c2-accent-green/15 px-6 py-3 text-[0.82rem] font-semibold uppercase tracking-[0.16em] text-c2-accent-green transition-colors hover:bg-c2-accent-green/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-c2-accent-green/50 sm:text-sm sm:tracking-[0.22em]"
                 >
-                    <div className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-white/45 sm:text-xs sm:tracking-[0.32em]">
-                    Mission window
-                  </div>
-                  <div className="mt-3 text-[1.55rem] font-semibold tracking-[-0.03em] text-white sm:text-2xl">
-                    Clean orbit replay with live operator controls
-                  </div>
-                  <div className="mt-2 text-[0.9rem] text-white/60 sm:text-sm">
-                    Use the scrubber to inspect state transitions and keep the visualization centered on decision-making.
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                  <Play className="h-4 w-4" />
+                  Begin replay
+                </button>
+              </div>
+            )}
 
             <div className="grid w-full grid-cols-2 gap-2 text-left sm:grid-cols-4 sm:gap-3">
               {[

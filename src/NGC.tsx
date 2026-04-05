@@ -52,6 +52,7 @@ export const NGC = () => {
   const [verificationHash, setVerificationHash] = useState<string | null>(null)
   const [sensorMode, setSensorMode] = useState<SensorMode>('OPTICAL')
   const [mitigated, setMitigated] = useState(false)
+  const [replayStarted, setReplayStarted] = useState(false)
   const [hoveredDebris, setHoveredDebris] = useState(false)
 
   const propagator = useMemo(() => new OrbitalPropagator(), [])
@@ -183,6 +184,7 @@ export const NGC = () => {
           onOrbitalInteract={() => setActive((value) => !value)}
           debrisPosition={debrisPosition}
           debrisRotation={debrisRotation}
+          dimOrb={conjunction || !replayStarted}
         />
       </Suspense>
 
@@ -190,7 +192,9 @@ export const NGC = () => {
         active={active}
         conjunction={conjunction}
         mitigated={mitigated}
+        replayStarted={replayStarted}
         onMitigate={handleMitigate}
+        onBeginReplay={() => setReplayStarted(true)}
         currentTime={currentTime}
         onTimeChange={setCurrentTime}
         isVerifying={isVerifying}
