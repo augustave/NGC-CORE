@@ -148,7 +148,7 @@ const ResilienceOrb = ({
           }}
         />
       )}
-      <span className="absolute bottom-8 left-1/2 -translate-x-1/2 rounded-full border border-white/10 bg-black/35 px-3 py-1 text-[0.7rem] uppercase tracking-[0.24em] text-white/75 backdrop-blur-md">
+      <span className="absolute bottom-8 left-1/2 hidden -translate-x-1/2 rounded-full border border-white/10 bg-black/35 px-3 py-1 text-[0.7rem] uppercase tracking-[0.24em] text-white/75 backdrop-blur-md sm:block">
         {sensorMode} core
       </span>
       <span
@@ -159,7 +159,7 @@ const ResilienceOrb = ({
         {active ? 'ENGAGED' : 'STANDBY'}
       </span>
       <span
-        className={`absolute top-7 left-1/2 -translate-x-1/2 rounded-full border px-3 py-1 text-[0.6rem] uppercase tracking-[0.28em] backdrop-blur-md transition-all duration-300 ${
+        className={`absolute top-7 left-1/2 hidden -translate-x-1/2 rounded-full border px-3 py-1 text-[0.6rem] uppercase tracking-[0.28em] backdrop-blur-md transition-all duration-300 sm:block ${
           active ? 'border-c2-accent-green/30 bg-c2-accent-green/15 text-c2-accent-green' : 'border-white/10 bg-black/30 text-white/45'
         }`}
       >
@@ -212,10 +212,10 @@ export const OrbitalScene = ({
       >
         <defs>
           <radialGradient id="orbitalGlow" cx="50%" cy="40%" r="65%">
-            <stop offset="0%" stopColor="rgba(255,255,255,0.85)" />
-            <stop offset="22%" stopColor="rgba(255,255,255,0.35)" />
-            <stop offset="62%" stopColor="rgba(88,166,255,0.16)" />
-            <stop offset="100%" stopColor="rgba(3,5,11,0)" />
+            <stop offset="0%" stopColor="#ffffff" stopOpacity={0.85} />
+            <stop offset="22%" stopColor="#ffffff" stopOpacity={0.35} />
+            <stop offset="62%" stopColor="#58a6ff" stopOpacity={0.16} />
+            <stop offset="100%" stopColor="#03050b" stopOpacity={0} />
           </radialGradient>
           <filter id="softBlur">
             <feGaussianBlur stdDeviation="0.7" />
@@ -234,7 +234,7 @@ export const OrbitalScene = ({
           fill="none"
           stroke={orbitColor}
           strokeWidth="0.6"
-          strokeDasharray={conjunction ? '1.2 0.9' : 'none'}
+          strokeDasharray={conjunction ? '1.2 0.9' : undefined}
           strokeLinecap="round"
           strokeLinejoin="round"
           opacity={conjunction ? 0.95 : 0.82}
@@ -266,7 +266,7 @@ export const OrbitalScene = ({
         )}
       </svg>
 
-      <div className="absolute inset-0 flex items-center justify-center">
+      <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${conjunction ? 'pointer-events-none opacity-40' : ''}`}>
         <ResilienceOrb active={active} sensorMode={sensorMode} onOrbitalInteract={onOrbitalInteract} />
       </div>
 

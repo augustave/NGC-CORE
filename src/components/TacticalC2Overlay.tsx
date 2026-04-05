@@ -229,7 +229,7 @@ export const TacticalC2Overlay = ({
                   initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.96 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 1.02 }}
-                  className="pointer-events-none rounded-[28px] border border-red-500/30 bg-red-950/35 px-6 py-5 backdrop-blur-xl"
+                  className="pointer-events-auto relative z-[90] rounded-[28px] border border-red-500/30 bg-red-950/35 px-6 py-5 backdrop-blur-xl"
                 >
                   <div className="flex items-center justify-center gap-3 text-red-300">
                     <AlertTriangle className="h-5 w-5" />
