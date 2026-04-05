@@ -51,6 +51,7 @@ export const NGC = () => {
   const [isVerifying, setIsVerifying] = useState(false)
   const [verificationHash, setVerificationHash] = useState<string | null>(null)
   const [sensorMode, setSensorMode] = useState<SensorMode>('OPTICAL')
+  const [mitigated, setMitigated] = useState(false)
   const [hoveredDebris, setHoveredDebris] = useState(false)
 
   const propagator = useMemo(() => new OrbitalPropagator(), [])
@@ -126,6 +127,7 @@ export const NGC = () => {
 
   const handleMitigate = () => {
     setConjunction(false)
+    setMitigated(true)
     setActive(true)
   }
 
@@ -158,7 +160,7 @@ export const NGC = () => {
     link.href = url
     link.download = `NGC_MISSION_REPORT_${new Date().getTime()}.json`
     link.click()
-    URL.revokeObjectURL(url)
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
   return (
@@ -187,6 +189,7 @@ export const NGC = () => {
       <TacticalC2Overlay
         active={active}
         conjunction={conjunction}
+        mitigated={mitigated}
         onMitigate={handleMitigate}
         currentTime={currentTime}
         onTimeChange={setCurrentTime}
